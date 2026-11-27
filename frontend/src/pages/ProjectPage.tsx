@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState, type Drag
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ApiError, api } from '../api'
 import { useAuth } from '../auth'
+import { GuideDialog, HelpMenu, InfoTip, MAP_TOUR, Tour, markSeen, seen, type GuideTab } from '../components/Guide'
 import { MapView, type MapHandle } from '../components/MapView'
 import { describeEdge, mergeEdges, type MapEdge } from '../graph'
 import { ALERT_META, COLORS, NODE_META, SEVERITY_LABEL, VIEWS, alertMeta, iconSvg, plural, relativeTime } from '../legend'
@@ -43,6 +44,9 @@ export function ProjectPage() {
   const [intentFrom, setIntentFrom] = useState('')
   const [intentTo, setIntentTo] = useState('')
   const dragDepth = useRef(0)
+  const [tourOpen, setTourOpen] = useState(false)
+  const [guide, setGuide] = useState<{ open: boolean; tab: GuideTab }>({ open: false, tab: 'start' })
+  const openGuide = useCallback((tab: GuideTab = 'start') => setGuide({ open: true, tab }), [])
 
   useEffect(() => {
     const query = window.matchMedia(WIDE)
@@ -83,6 +87,13 @@ export function ProjectPage() {
       alive = false
     }
   }, [email, id, ready, view])
+
+  const mapReady = Boolean(snap && snap.nodes.length > 0)
+  useEffect(() => {
+    if (!mapReady || seen('map-tour')) return
+    const timer = window.setTimeout(() => setTourOpen(true), 1300)
+    return () => window.clearTimeout(timer)
+  }, [mapReady])
 
   const openAlerts = useMemo(() => snap?.alerts.filter((alert) => alert.status === 'open') ?? [], [snap])
   const orderedAlerts = useMemo(
@@ -129,6 +140,7 @@ export function ProjectPage() {
       } else if (key === 'f' || key === 'F') mapRef.current?.fit()
       else if (key === '+' || key === '=') mapRef.current?.zoomBy(1.25)
       else if (key === '-' || key === '_') mapRef.current?.zoomBy(0.8)
+      else if (key === '?') openGuide('start')
       else if (key === 'n' || key === 'N') step(1)
       else if (key === 'p' || key === 'P') step(-1)
       else if (['1', '2', '3', '4'].includes(key)) setView(VIEWS[Number(key) - 1].id)
@@ -139,7 +151,7 @@ export function ProjectPage() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [clearFocus, step])
+  }, [clearFocus, openGuide, step])
 
   if (ready && !email) return <Navigate to="/login" replace />
 
@@ -399,7 +411,7 @@ export function ProjectPage() {
               { label: hasTrace ? 'Replace runtime trace' : 'Upload runtime trace', hint: 'OpenTelemetry JSON, up to 2 MB', icon: 'upload', onSelect: () => traceRef.current?.click(), disabled: Boolean(busy) },
             ]}
             trigger={({ open, toggle }) => (
-              <button type="button" className="btn ghost-dark" aria-expanded={open} aria-haspopup="menu" onClick={toggle}>
+              <button type="button" data-tour="upload" className="btn ghost-dark" title="Upload source or trace" aria-expanded={open} aria-haspopup="menu" onClick={toggle}>
                 <Icon name="upload" />
                 <span className="hide-sm">Upload</span>
               </button>
@@ -412,14 +424,16 @@ export function ProjectPage() {
               { label: 'Report as JSON', hint: 'For scripts and CI', icon: 'download', onSelect: () => void exportReport('json') },
             ]}
             trigger={({ open, toggle }) => (
-              <button type="button" className="btn ghost-dark" aria-expanded={open} aria-haspopup="menu" onClick={toggle} disabled={!snap}>
+              <button type="button" className="btn ghost-dark" title="Export a report" aria-expanded={open} aria-haspopup="menu" onClick={toggle} disabled={!snap}>
                 <Icon name="download" />
                 <span className="hide-sm">Export</span>
               </button>
             )}
           />
+          <HelpMenu tone="bar" onTour={mapReady ? () => setTourOpen(true) : undefined} onGuide={openGuide} />
           <button
             type="button"
+            data-tour="panel-toggle"
             className={panelOpen ? 'btn ghost-dark on narrow-only' : 'btn ghost-dark narrow-only'}
             aria-pressed={panelOpen}
             title={panelOpen ? 'Hide side panel' : 'Show side panel'}
@@ -462,6 +476,7 @@ export function ProjectPage() {
             </div>
           ) : !hasSource && !hasTrace && snap.intents.length === 0 ? (
             <Onboarding
+              onGuide={() => openGuide('start')}
               busy={Boolean(busy)}
               onSource={() => zipRef.current?.click()}
               onTrace={() => traceRef.current?.click()}
@@ -638,6 +653,21 @@ export function ProjectPage() {
         ) : null}
       </div>
 
+      <Tour
+        steps={MAP_TOUR}
+        open={tourOpen}
+        onClose={() => {
+          setTourOpen(false)
+          markSeen('map-tour')
+        }}
+      />
+      <GuideDialog
+        open={guide.open}
+        initialTab={guide.tab}
+        onClose={() => setGuide((current) => ({ ...current, open: false }))}
+        onTour={mapReady ? () => setTourOpen(true) : undefined}
+      />
+
       <Dialog
         open={confirmReplace !== null}
         title={confirmReplace?.kind === 'source' ? 'Replace the source?' : 'Replace the trace?'}
@@ -716,7 +746,7 @@ function TabButton({ id, tab, onClick, label, count, tone }: { id: Tab; tab: Tab
   )
 }
 
-function Onboarding({ busy, onSource, onTrace }: { busy: boolean; onSource: () => void; onTrace: () => void }) {
+function Onboarding({ busy, onSource, onTrace, onGuide }: { busy: boolean; onSource: () => void; onTrace: () => void; onGuide: () => void }) {
   return (
     <div className="onboarding">
       <p className="eyebrow">New map</p>
@@ -754,6 +784,9 @@ function Onboarding({ busy, onSource, onTrace }: { busy: boolean; onSource: () =
       <p className="drop-hint">
         <Icon name="upload" size={14} /> Or drop a file anywhere on this screen.
       </p>
+      <button type="button" className="link-btn" onClick={onGuide}>
+        Not sure what these files are? Read the guide
+      </button>
     </div>
   )
 }
@@ -928,6 +961,15 @@ function DriftTab({
         </div>
       ) : (
         <>
+          <p className="panel-intro">
+            Places where your code and the running system disagree. Click one to see it on the map.
+            <InfoTip label="drift">
+              <span>
+                Drift is a difference between what the code says and what actually ran. <b>High</b> means something ran that the code never mentions.{' '}
+                <b>Medium</b> means the code has something the trace never saw, or an intended link is missing.
+              </span>
+            </InfoTip>
+          </p>
           <div className="sev-filter" role="radiogroup" aria-label="Filter by severity">
             {(['all', 'high', 'medium'] as const).map((value) => {
               const count = value === 'all' ? alerts.length : snap.severities[value]
@@ -1085,6 +1127,15 @@ function DetailsTab({
         </section>
       ) : null}
 
+      <p className="panel-intro small-intro">
+        Line colors match the map.
+        <InfoTip label="these connections">
+          <span>
+            <b>Calls out</b> are things this part talks to. <b>Called by</b> are things that talk to it. Each row says whether the call is in the code, seen
+            at runtime, or both. Click a row to jump to that part.
+          </span>
+        </InfoTip>
+      </p>
       <ConnectionList title="Calls out" edges={outgoing} nameOf={nameOf} other={(edge) => edge.target} onSelect={onSelect} empty="Calls nothing in this view." />
       <ConnectionList title="Called by" edges={incoming} nameOf={nameOf} other={(edge) => edge.source} onSelect={onSelect} empty="Nothing calls it in this view." />
 
@@ -1242,6 +1293,15 @@ function IntentTab({
         Write down the links your design says should exist. CodeMap checks each one against the source and the trace, and raises an alert when one is
         missing.
       </p>
+      <div className="panel-intro small-intro">
+        Example: if checkout must always call payments, add checkout → payments.
+        <InfoTip label="an intended link">
+          <span>
+            A connection your design says should exist. If neither the code nor the trace has it, CodeMap shows it as <b>Missing</b> and raises an
+            alert, so you know the design and the system are out of step.
+          </span>
+        </InfoTip>
+      </div>
       <form className="intent-form" onSubmit={onSubmit}>
         <label>
           <span>From</span>

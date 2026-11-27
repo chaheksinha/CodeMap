@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { Menu } from '../ui'
 
-export function Shell({ children }: { children: React.ReactNode }) {
+export function Shell({ children, help }: { children: React.ReactNode; help?: React.ReactNode }) {
   const { email, logout } = useAuth()
   return (
     <div className="app-shell">
@@ -11,6 +11,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <span className="mark" aria-hidden="true" />
           <span className="brand-text">CodeMap</span>
         </Link>
+        <div className="topbar-side">
+        {help}
         {email ? (
           <Menu
             label="Account"
@@ -25,6 +27,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             )}
           />
         ) : null}
+        </div>
       </header>
       <div className="shell-body">{children}</div>
     </div>

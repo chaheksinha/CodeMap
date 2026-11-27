@@ -1349,6 +1349,190 @@ input:focus, select:focus { outline: none; border-color: var(--reads); box-shado
 .rail-count.high { background: var(--drift); color: #fff; border-color: var(--drift); }
 .rail-count.medium { background: var(--source); color: #fff; border-color: var(--source); }
 
+
+/* ---------- help: menu button, tour, guide, inline hints ---------- */
+
+.topbar-side { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.help-btn { position: relative; }
+.help-btn.light {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 12px 0 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--surface);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.help-btn.light:hover, .help-btn.light[aria-expanded='true'] { background: var(--surface-2); }
+.help-glyph {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  border: 1.6px solid currentColor;
+  font-weight: 800;
+  font-size: 0.78rem;
+  line-height: 1;
+  flex: none;
+}
+.link-btn.inline { padding: 0; font-size: inherit; }
+.muted-link { color: var(--ink-3); }
+.start-link { justify-self: start; padding-left: 0; }
+
+/* tour */
+.tour { position: fixed; inset: 0; z-index: 200; }
+.tour-block { position: absolute; inset: 0; }
+.tour-dim { position: absolute; inset: 0; background: rgba(20, 32, 43, 0.55); animation: fade 200ms ease-out; }
+.tour-spot {
+  position: absolute;
+  border-radius: 12px;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.9), 0 0 0 9999px rgba(20, 32, 43, 0.55);
+  pointer-events: none;
+  transition: top 320ms var(--ease), left 320ms var(--ease), width 320ms var(--ease), height 320ms var(--ease);
+}
+.tour-card {
+  position: absolute;
+  display: grid;
+  gap: 8px;
+  padding: 18px 18px 14px;
+  background: var(--surface);
+  border-radius: 14px;
+  box-shadow: var(--shadow-pop);
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  transition: top 320ms var(--ease), left 320ms var(--ease);
+  animation: rise-card 260ms var(--ease);
+}
+@keyframes rise-card { from { opacity: 0; transform: translateY(6px); } }
+.tour-card.sheet {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  width: auto;
+  border-radius: 16px 16px 0 0;
+  max-height: 60vh;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+}
+.tour-progress { display: flex; gap: 4px; }
+.tour-progress i { height: 4px; flex: 1; border-radius: 2px; background: var(--line); transition: background 200ms; }
+.tour-progress i.done { background: var(--ink-3); }
+.tour-progress i.on { background: var(--ink); }
+.tour-count { font-size: 0.78rem; color: var(--ink-3); font-weight: 700; margin-top: 4px; }
+.tour-card h2 { font-size: 1.15rem; }
+.tour-body { display: grid; gap: 8px; color: var(--ink-2); font-size: 0.94rem; line-height: 1.5; }
+.tour-tip { font-size: 0.86rem; color: var(--ink-3); padding: 8px 10px; background: var(--surface-2); border-radius: 8px; }
+.tour-lines, .tour-list { display: grid; gap: 8px; }
+.tour-lines li { display: flex; align-items: center; gap: 10px; }
+.tour-lines li.tour-tip { display: block; }
+.tour-list li { padding-left: 14px; position: relative; }
+.tour-list li::before { content: ''; position: absolute; left: 0; top: 0.6em; width: 6px; height: 6px; border-radius: 50%; background: var(--ink-3); }
+.inline-line { flex: none; vertical-align: middle; }
+.tour-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.tour-nav { display: flex; gap: 6px; margin-left: auto; }
+
+/* guide dialog */
+.dialog.wide { width: min(760px, calc(100vw - 24px)); }
+.dialog.wide .dialog-inner { max-height: calc(100vh - 48px); grid-template-rows: auto minmax(0, 1fr) auto; }
+.dialog.wide .dialog-body { min-height: 0; overflow: hidden; display: flex; }
+.guide { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 20px; min-height: 0; width: 100%; }
+.guide-tabs { display: grid; align-content: start; gap: 2px; }
+.guide-tabs button {
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--ink-3);
+}
+.guide-tabs button:hover { color: var(--ink); background: var(--surface-2); }
+.guide-tabs button.on { background: var(--ink); color: #fff; }
+.guide-body { min-height: 0; overflow-y: auto; padding-right: 4px; display: grid; align-content: start; gap: 14px; color: var(--ink-2); max-height: min(60vh, 520px); }
+.guide-lede { font-size: 1rem; color: var(--ink); }
+.guide-h { font-size: 0.95rem; color: var(--ink); margin-top: 4px; }
+.guide-steps { display: grid; gap: 12px; }
+.guide-steps li { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; }
+.guide-steps strong { color: var(--ink); }
+.guide-steps p { font-size: 0.9rem; margin-top: 2px; }
+.guide-steps code { font-size: 0.78rem; overflow-wrap: anywhere; }
+.guide-note { display: flex; gap: 8px; align-items: flex-start; font-size: 0.88rem; padding: 10px 12px; background: var(--reads-bg); color: #173a60; border-radius: 8px; }
+.guide-note .icon { margin-top: 3px; }
+.guide-legend { display: grid; gap: 10px; }
+.guide-legend li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: start; }
+.guide-legend li > svg, .guide-legend li > .key-node, .guide-legend li > .key-halo { margin-top: 4px; }
+.guide-legend strong { color: var(--ink); font-size: 0.94rem; }
+.guide-legend p { font-size: 0.88rem; }
+.key-halo.big { width: 30px; height: 18px; }
+.guide-drift { display: grid; gap: 10px; }
+.guide-drift li { padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; display: grid; gap: 4px; }
+.guide-drift strong { color: var(--ink); }
+.guide-drift p { font-size: 0.9rem; }
+.guide-action { color: var(--ink-3); }
+.guide-action b { color: var(--ink-2); }
+.guide-words { margin: 0; display: grid; gap: 10px; }
+.guide-words div { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.guide-words div:last-child { border-bottom: 0; }
+.guide-words dt { font-weight: 800; color: var(--ink); }
+.guide-words dd { margin: 0; font-size: 0.92rem; }
+.guide-keys { margin: 0; display: grid; gap: 8px; }
+.guide-keys div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; align-items: center; }
+.guide-keys dt { display: flex; gap: 4px; align-items: center; color: var(--ink-3); font-size: 0.86rem; }
+.guide-keys dd { margin: 0; }
+
+/* inline hints */
+.panel-intro { font-size: 0.88rem; color: var(--ink-3); line-height: 1.45; }
+.panel-intro.small-intro { font-size: 0.82rem; margin-bottom: -8px; }
+.info-tip { position: relative; display: inline-flex; vertical-align: middle; margin-left: 4px; }
+.info-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--reads);
+  padding: 0;
+}
+.info-btn:hover, .info-btn[aria-expanded='true'] { background: var(--reads-bg); }
+.info-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: -8px;
+  z-index: 40;
+  width: min(280px, 80vw);
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--ink);
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: 10px;
+  box-shadow: var(--shadow-pop);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  text-align: left;
+  animation: menu-in 160ms var(--ease);
+}
+.info-pop strong { color: #fff; text-transform: none; }
+.info-pop b { color: #fff; }
+
+@media (max-width: 640px) {
+  .guide { grid-template-columns: 1fr; gap: 12px; }
+  .guide-tabs { display: flex; overflow-x: auto; gap: 4px; scrollbar-width: none; }
+  .guide-tabs::-webkit-scrollbar { display: none; }
+  .guide-tabs button { flex: none; white-space: nowrap; padding: 7px 10px; }
+  .guide-body { max-height: 52vh; }
+  .guide-words div, .guide-keys div { grid-template-columns: 1fr; gap: 2px; }
+  .help-btn.light { padding: 0 6px; }
+  .help-btn.light .hide-sm { display: none; }
+}
+
 /* ---------- responsive ---------- */
 
 .ws-body.with-panel { grid-template-columns: minmax(0, 1fr) clamp(320px, 26vw, 420px); }

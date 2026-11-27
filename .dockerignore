@@ -1,0 +1,12 @@
+.git
+.agents
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+frontend/dist
+backend/storage
+backend/codemap.db
+backend/tests
+fixtures
+*.md

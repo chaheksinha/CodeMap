@@ -217,6 +217,7 @@ export function Dialog({
   onClose,
   footer,
   tone = 'default',
+  wide = false,
 }: {
   open: boolean
   title: string
@@ -224,6 +225,7 @@ export function Dialog({
   onClose: () => void
   footer: ReactNode
   tone?: 'default' | 'danger'
+  wide?: boolean
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
@@ -238,7 +240,7 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
-      className={`dialog ${tone}`}
+      className={`dialog ${tone}${wide ? ' wide' : ''}`}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault()

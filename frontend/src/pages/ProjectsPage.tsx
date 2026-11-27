@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { ApiError, api, projectIdOf } from '../api'
 import { useAuth } from '../auth'
+import { GuideDialog, HelpMenu, PROJECTS_TOUR, Tour, markSeen, seen, type GuideTab } from '../components/Guide'
 import { Shell } from '../components/Shell'
 import { StoryMap } from '../components/StoryMap'
 import { COLORS, plural, relativeTime } from '../legend'
@@ -27,6 +28,15 @@ export function ProjectsPage() {
   const [renameValue, setRenameValue] = useState('')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<Sort>('recent')
+  const [tourOpen, setTourOpen] = useState(false)
+  const [guide, setGuide] = useState<{ open: boolean; tab: GuideTab }>({ open: false, tab: 'start' })
+
+  const hasProjects = projects.length > 0
+  useEffect(() => {
+    if (!hasProjects || seen('projects-tour')) return
+    const timer = window.setTimeout(() => setTourOpen(true), 700)
+    return () => window.clearTimeout(timer)
+  }, [hasProjects])
 
   useEffect(() => {
     if (!ready || !email) return
@@ -111,7 +121,14 @@ export function ProjectsPage() {
   const empty = !loading && !loadError && projects.length === 0
 
   return (
-    <Shell>
+    <Shell
+      help={
+        <HelpMenu
+          onTour={hasProjects ? () => setTourOpen(true) : undefined}
+          onGuide={(tab) => setGuide({ open: true, tab: tab ?? 'start' })}
+        />
+      }
+    >
       <main className="projects">
         {loading ? (
           <div className="page-loading">
@@ -143,6 +160,9 @@ export function ProjectsPage() {
                 </button>
               </div>
               <p className="fine">The demo is a small shop: four services, one database, and a call that exists only at runtime.</p>
+              <button type="button" className="link-btn start-link" onClick={() => setGuide({ open: true, tab: 'start' })}>
+                New here? Read how CodeMap works
+              </button>
             </div>
             <StoryMap />
           </section>
@@ -165,7 +185,7 @@ export function ProjectsPage() {
                 <button type="button" className="btn secondary" disabled={busy !== null} onClick={loadDemo}>
                   {busy === 'demo' ? <Spinner label="Loading…" /> : 'Add demo'}
                 </button>
-                <button type="button" className="btn primary" onClick={() => setCreating(true)}>
+                <button type="button" data-tour="new-project" className="btn primary" onClick={() => setCreating(true)}>
                   <Icon name="plus" /> New project
                 </button>
               </div>
@@ -237,6 +257,21 @@ export function ProjectsPage() {
         )}
       </main>
 
+      <Tour
+        steps={PROJECTS_TOUR}
+        open={tourOpen}
+        onClose={() => {
+          setTourOpen(false)
+          markSeen('projects-tour')
+        }}
+      />
+      <GuideDialog
+        open={guide.open}
+        initialTab={guide.tab}
+        onClose={() => setGuide((current) => ({ ...current, open: false }))}
+        onTour={hasProjects ? () => setTourOpen(true) : undefined}
+      />
+
       <Dialog
         open={creating}
         title="New project"
@@ -271,7 +306,12 @@ export function ProjectsPage() {
               {formError}
             </p>
           ) : null}
-          <p className="muted small">Next you will upload a source zip and a runtime trace.</p>
+          <p className="muted small">
+            Next you’ll upload a source zip and a runtime trace.{' '}
+            <button type="button" className="link-btn inline" onClick={() => setGuide({ open: true, tab: 'start' })}>
+              What are these?
+            </button>
+          </p>
         </form>
       </Dialog>
 

@@ -27,6 +27,7 @@ class Settings:
         self.jwt_secret = os.environ.get("JWT_SECRET", "local-dev-change-me")
         self.storage_dir = Path(os.environ.get("UPLOAD_DIR", BACKEND_DIR / "storage"))
         self.demo_dir = Path(os.environ.get("DEMO_PROJECTS_DIR", REPO_DIR / "demo-projects"))
+        self.static_dir = Path(os.environ.get("STATIC_DIR", REPO_DIR / "frontend" / "dist"))
         raw_origins = os.environ.get(
             "CORS_ORIGINS",
             "http://127.0.0.1:43123,http://localhost:43123",
