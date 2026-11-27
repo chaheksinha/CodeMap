@@ -1,0 +1,57 @@
+{
+  "resourceSpans": [
+    {
+      "resource": {
+        "attributes": [
+          { "key": "service.name", "value": { "stringValue": "game-engine" } }
+        ]
+      },
+      "scopeSpans": [
+        {
+          "spans": [
+            {
+              "name": "POST /scores",
+              "attributes": [
+                {
+                  "key": "http.url",
+                  "value": { "stringValue": "http://score-api:8000/scores" }
+                }
+              ]
+            },
+            {
+              "name": "POST /track",
+              "attributes": [
+                {
+                  "key": "http.url",
+                  "value": { "stringValue": "http://telemetry-service:9000/track" }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "resource": {
+        "attributes": [
+          { "key": "service.name", "value": { "stringValue": "score-api" } }
+        ]
+      },
+      "scopeSpans": [
+        {
+          "spans": [
+            {
+              "name": "POST /events",
+              "attributes": [
+                {
+                  "key": "url.full",
+                  "value": { "stringValue": "https://analytics.example.com/events" }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

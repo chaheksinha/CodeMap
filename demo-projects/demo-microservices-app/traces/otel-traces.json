@@ -1,0 +1,55 @@
+{
+  "resourceSpans": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "order-service"
+            }
+          }
+        ]
+      },
+      "scopeSpans": [
+        {
+          "spans": [
+            {
+              "name": "GET /users/1",
+              "attributes": [
+                {
+                  "key": "peer.service",
+                  "value": {
+                    "stringValue": "user-service"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "POST /notify",
+              "attributes": [
+                {
+                  "key": "http.url",
+                  "value": {
+                    "stringValue": "http://notification-service:8000/notify"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "POST /charge",
+              "attributes": [
+                {
+                  "key": "url.full",
+                  "value": {
+                    "stringValue": "https://payments.example.com/charge"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
