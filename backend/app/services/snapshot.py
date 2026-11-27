@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -70,6 +70,8 @@ def build_report(db: Session, project: Project) -> dict:
 
 
 def iso(value: datetime) -> str:
+    if value.tzinfo is not None:
+        value = value.astimezone(timezone.utc).replace(tzinfo=None)
     return value.isoformat(timespec="seconds") + "Z"
 
 
@@ -99,10 +101,12 @@ def _graph(
     graph = [row for row in components if row.kind in _GRAPH_KINDS]
     by_key = {row.key: row for row in graph}
     hot = _hot_labels(alerts)
+    modules = _module_view(view, graph, components, relationships, hot)
     if view == "static":
         edges = [row for row in relationships if row.origin == "static" and row.kind in {"call", "database", "exposes"}]
         nodes = [row for row in graph if row.kind in {"service", "database", "api"}]
-        return _sort_nodes([_graph_node(row, hot) for row in nodes]), _sort_edges(edges, by_key)
+        node_dicts = _without_idle_service([_graph_node(row, hot) for row in nodes], edges, modules)
+        return _sort_nodes(node_dicts), _sort_edges(edges, by_key) + modules[1]
     if view == "runtime":
         edges = [row for row in relationships if row.origin == "runtime"]
         return _endpoint_nodes(edges, by_key, hot), _sort_edges(edges, by_key)
@@ -114,8 +118,62 @@ def _graph(
         for row in relationships
         if row.origin in {"static", "runtime", "intended"} and row.kind not in {"import"}
     ]
-    nodes = [_graph_node(row, hot) for row in graph]
-    return _sort_nodes(nodes), _sort_edges(edges, by_key)
+    nodes = _without_idle_service([_graph_node(row, hot) for row in graph], edges, modules)
+    return _sort_nodes(nodes), _sort_edges(edges, by_key) + modules[1]
+
+
+def _without_idle_service(nodes: list[dict], edges: list[Relationship], modules: tuple[list[dict], list[dict]]) -> list[dict]:
+    """In the module view, the app's own box adds nothing unless something connects to it."""
+    if not modules[0]:
+        return nodes
+    used = {row.source_key for row in edges} | {row.target_key for row in edges}
+    kept = [node for node in nodes if node["kind"] != "service" or node["id"] in used]
+    return kept + modules[0]
+
+
+def _module_view(
+    view: str,
+    graph: list[Component],
+    components: list[Component],
+    relationships: list[Relationship],
+    hot: set[str],
+) -> tuple[list[dict], list[dict]]:
+    """For a project that is one app (a single service), show its files and imports.
+
+    Multi-service systems are mapped service to service. A single app would otherwise
+    be one lonely box, so its source files and the imports between them are shown instead.
+    """
+    if view not in {"static", "combined"}:
+        return [], []
+    services = [row for row in graph if row.kind == "service"]
+    files = {row.key: row for row in components if row.kind == "file"}
+    if len(services) > 1 or len(files) < 2:
+        return [], []
+    imports = [
+        row
+        for row in relationships
+        if row.kind == "import" and row.source_key in files and row.target_key in files and row.source_key != row.target_key
+    ]
+    if not imports:
+        return [], []
+    def short(key: str) -> str:
+        service = service_of(key)
+        return key[len(service) + 1 :] if key.startswith(service + "/") else key
+
+    shorts = {key: short(key) for key in files}
+    # Drop a folder every file shares (e.g. "js/"), so labels are just file names.
+    first = {value.split("/", 1)[0] for value in shorts.values()}
+    if len(first) == 1 and all("/" in value for value in shorts.values()):
+        shorts = {key: value.split("/", 1)[1] for key, value in shorts.items()}
+    nodes = [_node(key, shorts[key], "file", hot, service_of(key)) for key in sorted(files)]
+    labels = {node["id"]: node["label"] for node in nodes}
+    edges = []
+    for row in sorted(imports, key=lambda item: item.id):
+        edge = _edge(row)
+        edge["source_name"] = labels[row.source_key]
+        edge["target_name"] = labels[row.target_key]
+        edges.append(edge)
+    return nodes, edges
 
 
 def _endpoint_nodes(edges: list[Relationship], by_key: dict[str, Component], hot: set[str]) -> list[dict]:

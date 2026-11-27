@@ -29,6 +29,33 @@ MAX_RATIO = 40
 RATIO_FLOOR = 50_000
 
 
+# Folders that never contain the project's own source: dependencies, build output,
+# version control and editor metadata. Their contents are skipped, not extracted.
+SKIPPED_DIRS = {
+    ".git",
+    ".github",
+    ".svn",
+    ".hg",
+    ".idea",
+    ".vscode",
+    "node_modules",
+    "bower_components",
+    ".venv",
+    "venv",
+    "env",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    "dist",
+    "build",
+    ".next",
+    ".nuxt",
+    "coverage",
+    ".turbo",
+    ".cache",
+}
+
+
 class ZipRejected(Exception):
     pass
 
@@ -43,7 +70,7 @@ def safe_extract(data: bytes, dest: Path) -> None:
     with archive:
         members = _members(archive)
         if not members:
-            raise ZipRejected("Zip has no source files")
+            raise ZipRejected("Zip has no source files. Upload a zip containing Python, TypeScript or JavaScript code.")
         dest.mkdir(parents=True, exist_ok=True)
         total = 0
         for info, relative in members:
@@ -93,18 +120,25 @@ def _members(archive: zipfile.ZipFile) -> list[tuple[zipfile.ZipInfo, str]]:
     chosen: list[tuple[zipfile.ZipInfo, str]] = []
     total = 0
     for info in archive.infolist():
-        if info.is_dir() or info.filename.endswith("/"):
-            continue
+        # Windows tools (Explorer, PowerShell) write folder entries with backslashes.
         raw_name = info.filename.replace("\\", "/")
+        if info.is_dir() or raw_name.endswith("/"):
+            continue
         base_name = raw_name.rsplit("/", 1)[-1]
         if raw_name.startswith("__MACOSX/") or "/__MACOSX/" in f"/{raw_name}" or base_name.startswith("._"):
             continue
+        # Path safety applies to every entry, even ones that would be skipped.
         relative = _safe_relative(raw_name)
-        if _is_symlink(info):
-            raise ZipRejected("Zip contains a symlink")
+        folders = relative.split("/")[:-1]
+        if any(folder in SKIPPED_DIRS for folder in folders):
+            continue
         suffix = Path(relative).suffix.lower()
         if suffix not in ALLOWED_SUFFIXES:
-            raise ZipRejected(f"Disallowed file type: {relative}")
+            # Images, HTML, CSS, binaries and the like are not analysed, so they
+            # are never extracted. Skipping them lets real projects upload as-is.
+            continue
+        if _is_symlink(info):
+            raise ZipRejected("Zip contains a symlink")
         if info.file_size > MAX_MEMBER:
             raise ZipRejected("Zip member is too large")
         compressed = max(info.compress_size, 1)

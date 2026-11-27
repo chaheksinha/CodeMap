@@ -8,3 +8,7 @@ services:
     envVars:
       - key: JWT_SECRET
         generateValue: true
+      # Azure Database for PostgreSQL connection string. Render asks for it on first deploy.
+      # Format: postgresql://USER:PASSWORD@SERVER.postgres.database.azure.com:5432/codemap?sslmode=require
+      - key: DATABASE_URL
+        sync: false

@@ -23,7 +23,7 @@ export const NODE_META: Record<string, { label: string; plural: string; tint: st
   api: { label: 'Route', plural: 'Routes', tint: '#55636F', hint: 'An HTTP route found from a decorator in the source.' },
   database: { label: 'Database', plural: 'Databases', tint: COLORS.reads, hint: 'A data store named in the source.' },
   external: { label: 'Outside host', plural: 'Outside hosts', tint: '#7A5A4E', hint: 'A host that is not part of this repository.' },
-  file: { label: 'File', plural: 'Files', tint: '#55636F', hint: 'A source file.' },
+  file: { label: 'Module', plural: 'Modules', tint: '#55636F', hint: 'A source file. This project is one app, so the map shows its files and which file imports which.' },
 }
 
 export const EDGE_META: Record<string, { label: string; color: string; hint: string; dash: 'solid' | 'dashed' | 'dotted' }> = {

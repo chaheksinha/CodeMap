@@ -6,7 +6,9 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
-from app.database import Base, engine
+from sqlalchemy import text
+
+from app.database import Base, database_kind, engine
 from app.routers import auth, projects
 
 
@@ -30,6 +32,17 @@ app.add_middleware(
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True}
+
+
+@app.get("/api/health/db")
+def health_db() -> dict:
+    """Runs a real query so a deployment can confirm the database is reachable."""
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except Exception:
+        return {"ok": False, "database": database_kind()}
+    return {"ok": True, "database": database_kind()}
 
 
 app.include_router(auth.router, prefix="/api")

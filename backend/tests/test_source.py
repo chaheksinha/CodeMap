@@ -138,3 +138,18 @@ def test_typescript_index_and_library(tmp_path: Path) -> None:
     assert main.libraries == ["react"]
     index = next(record for record in analysis.files if record.path == "web/index.ts")
     assert "ready" in index.symbols
+
+
+def test_database_url_normalization() -> None:
+    from app.config import normalize_database_url
+
+    assert normalize_database_url("postgres://u:p@h/db") == "postgresql+psycopg://u:p@h/db"
+    assert normalize_database_url("postgresql://u:p@h/db") == "postgresql+psycopg://u:p@h/db"
+    assert normalize_database_url("sqlite:///x.db") == "sqlite:///x.db"
+
+
+def test_blank_database_url_falls_back_to_sqlite(monkeypatch) -> None:
+    from app.config import Settings
+
+    monkeypatch.setenv("DATABASE_URL", "   ")
+    assert Settings().database_url.startswith("sqlite:///")

@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 _TMP = Path(tempfile.mkdtemp(prefix="codemap-api-"))
-os.environ["DATABASE_URL"] = "sqlite:///" + (_TMP / "test.db").as_posix()
+os.environ["DATABASE_URL"] = os.environ.get("CODEMAP_TEST_DATABASE_URL") or "sqlite:///" + (_TMP / "test.db").as_posix()
 os.environ["JWT_SECRET"] = "test-secret"
 os.environ["UPLOAD_DIR"] = str(_TMP / "storage")
 
@@ -39,6 +39,13 @@ def _zip(entries: list[tuple[str, bytes]]) -> bytes:
         for name, payload in entries:
             archive.writestr(name, payload)
     return buffer.getvalue()
+
+
+def test_database_health(client: TestClient) -> None:
+    response = client.get("/api/health/db")
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert "@" not in response.json()["database"]
 
 
 def test_password_hash_round_trip() -> None:
@@ -418,6 +425,33 @@ def test_project_name_rules_and_valid_zip(client: TestClient) -> None:
     other = _auth(client, "zip-other@example.com")
     foreign = client.patch(f"/api/projects/{project_id}", headers=other, json={"name": "Mine"})
     assert foreign.status_code == 404
+
+    modular = client.post(
+        f"/api/projects/{project_id}/source",
+        headers=headers,
+        files={
+            "file": (
+                "game.zip",
+                _zip(
+                    [
+                        ("game/js/main.js", b"import { Engine } from './Engine.js'\nimport { Snake } from './Snake.js'\n"),
+                        ("game/js/Engine.js", b"import { Sky } from './Sky.js'\nexport class Engine {}\n"),
+                        ("game/js/Snake.js", b"export class Snake {}\n"),
+                        ("game/js/Sky.js", b"export class Sky {}\n"),
+                        ("game/index.html", b"<html></html>"),
+                    ]
+                ),
+                "application/zip",
+            )
+        },
+    )
+    assert modular.status_code == 200, modular.text
+    module_nodes = {node["label"] for node in modular.json()["nodes"] if node["kind"] == "file"}
+    assert module_nodes == {"main.js", "Engine.js", "Snake.js", "Sky.js"}
+    assert not any(node["kind"] == "service" for node in modular.json()["nodes"])
+    import_pairs = {(edge["source_name"], edge["target_name"]) for edge in modular.json()["edges"] if edge["kind"] == "import"}
+    assert ("main.js", "Engine.js") in import_pairs
+    assert ("Engine.js", "Sky.js") in import_pairs
 
     deleted = client.delete(f"/api/projects/{project_id}", headers=headers)
     assert deleted.status_code == 204

@@ -60,6 +60,7 @@ function togglesFor(view: ViewName, hasTrace: boolean): Toggle[] {
   if (view === 'combined' || view === 'intended') {
     list.push({ id: 'intended', label: 'Intended', hint: 'Links you said should exist.', line: { color: COLORS.intent, dash: '1 4', width: 2.6 }, test: (el) => el.channel === 'intended' })
   }
+  list.push({ id: 'import', label: 'Imports (file uses file)', hint: 'One source file imports another.', line: { color: '#55636F', width: 2 }, test: (el) => el.channel === 'import' })
   list.push(
     { id: 'routes', label: 'Routes', hint: 'HTTP routes each service serves.', icon: 'api', test: (el) => el.kind === 'api' || el.channel === 'route' },
     { id: 'database', label: 'Databases', hint: 'Data stores named in the source.', icon: 'database', test: (el) => el.kind === 'database' },
@@ -76,11 +77,12 @@ function sizeOf(node: GraphNode): { w: number; h: number } {
 }
 
 function layout(nodes: GraphNode[], edges: MapEdge[]): Record<string, { x: number; y: number }> {
-  const services = nodes.filter((node) => node.kind === 'service')
+  // Services (or, in a single-app project, its modules) are arranged in call order.
+  const services = nodes.filter((node) => node.kind === 'service' || node.kind === 'file')
   const serviceIds = new Set(services.map((node) => node.id))
   const rank = new Map<string, number>(services.map((node) => [node.id, 0]))
   const links = edges.filter(
-    (edge) => serviceIds.has(edge.source) && serviceIds.has(edge.target) && edge.source !== edge.target && edge.channel !== 'route' && edge.channel !== 'import',
+    (edge) => serviceIds.has(edge.source) && serviceIds.has(edge.target) && edge.source !== edge.target && edge.channel !== 'route',
   )
   for (let pass = 0; pass < services.length; pass += 1) {
     let changed = false
@@ -107,7 +109,7 @@ function layout(nodes: GraphNode[], edges: MapEdge[]): Record<string, { x: numbe
   const columns: GraphNode[][] = Array.from({ length: maxRank + 2 }, () => [])
   for (const node of services) columns[rank.get(node.id) ?? 0].push(node)
   columns[maxRank + 1].push(...nodes.filter((node) => node.kind === 'database'), ...nodes.filter((node) => node.kind === 'external'))
-  columns[0].push(...nodes.filter((node) => !['service', 'api', 'database', 'external'].includes(node.kind)), ...loose)
+  columns[0].push(...nodes.filter((node) => !['service', 'file', 'api', 'database', 'external'].includes(node.kind)), ...loose)
 
   const order = new Map<string, number>()
   const positions: Record<string, { x: number; y: number }> = {}
@@ -226,7 +228,8 @@ const stylesheet: cytoscape.StylesheetStyle[] = [
   { selector: 'edge[channel = "data"][status = "both"]', style: { width: 3.4 } },
   { selector: 'edge[channel = "intended"]', style: { width: 2.6, 'curve-style': 'unbundled-bezier', 'control-point-distances': [-60], 'control-point-weights': [0.5], 'line-style': 'dotted', 'line-color': COLORS.intent, 'target-arrow-color': COLORS.intent, 'text-background-color': COLORS.intent } },
   { selector: 'edge[channel = "route"]', style: { width: 1.2, 'line-color': COLORS.route, 'target-arrow-shape': 'none', 'taxi-direction': 'downward', 'taxi-turn': 12 } },
-  { selector: 'edge[channel = "import"]', style: { width: 1.2, 'line-color': COLORS.route, 'target-arrow-color': COLORS.route } },
+  { selector: 'edge[channel = "import"]', style: { width: 2, 'line-color': '#55636F', 'target-arrow-color': '#55636F' } },
+  { selector: 'node[kind = "file"]', style: { 'font-family': 'Overpass Mono, ui-monospace, monospace', 'font-size': 12, 'font-weight': 600, 'border-width': 1.5 } },
   { selector: 'edge.arc', style: { 'curve-style': 'unbundled-bezier', 'control-point-distances': 'data(bend)', 'control-point-weights': [0.5] } },
   { selector: 'edge.drift', style: { width: 3.4, 'line-color': COLORS.drift, 'target-arrow-color': COLORS.drift } },
   { selector: 'edge.stale', style: { 'line-style': 'dashed', 'line-dash-pattern': [2, 5], 'text-background-color': COLORS.source } },

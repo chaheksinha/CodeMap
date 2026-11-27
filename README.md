@@ -44,6 +44,12 @@ A guided tour starts the first time you open a map, and the **? Help** button ha
 
 Sample files are in [`fixtures/`](fixtures): `snake-game.zip` and `snake-game/traces/otel-traces.json`.
 
+## Supported projects
+
+- **Multi-service systems** (each top-level folder is a service) are mapped service to service, with drift detection against a trace.
+- **Single apps** (one folder, such as a game or a website) are mapped file by file: each module and which file imports which.
+- Python, TypeScript and JavaScript are analysed. Images, HTML, CSS, binaries and tool folders such as `.git`, `node_modules` and `dist` are skipped automatically, so you can zip a project as-is, including zips made by Windows.
+
 ## Features
 
 - Interactive map with a layered left-to-right layout, search, zoom and a filterable key
@@ -89,6 +95,23 @@ CodeMap/
 3. **Comparison.** Source pairs and runtime pairs are compared, along with your intended links, to produce drift alerts ranked high or medium.
 4. **Map.** The web app merges both sides into one line per connection, colored by whether they agree, and lays services out in call order.
 
+## Database: SQLite or Azure Database for PostgreSQL
+
+CodeMap runs on a local **SQLite** file by default and supports **Azure Database for PostgreSQL (Flexible Server)** for production. The database holds user accounts (with hashed passwords), projects, the components and connections found in uploaded code, runtime calls from traces, drift alerts and their dismissed state, intended links, and the activity log.
+
+The backend reaches it through SQLAlchemy using one setting, `DATABASE_URL`:
+
+```
+postgresql://USER:PASSWORD@SERVER.postgres.database.azure.com:5432/codemap?sslmode=require
+```
+
+- Connections are encrypted (TLS is required automatically for Azure hosts).
+- Each connection is checked before use and recycled every 30 minutes, because Azure closes idle connections.
+- Tables are created automatically on first start.
+- `GET /api/health/db` runs a real query and reports the database type, so you can confirm the connection works.
+
+Without `DATABASE_URL`, CodeMap falls back to a local SQLite file, which is handy for development. The test suite runs against either: set `CODEMAP_TEST_DATABASE_URL` to a PostgreSQL URL to run it on PostgreSQL.
+
 ## Run locally
 
 Requirements: Python 3.12 or newer and Node.js 20 or newer.
@@ -118,14 +141,16 @@ cd backend
 pytest -q
 ```
 
-Settings can be changed with environment variables (see `.env.example`): `JWT_SECRET`, `DATABASE_URL`, `UPLOAD_DIR` and `CORS_ORIGINS`.
+Settings can be changed with environment variables (see `.env.example`): `JWT_SECRET`, `DATABASE_URL`, `UPLOAD_DIR` and `CORS_ORIGINS`. To use Azure locally, put `DATABASE_URL=...` in a `.env` file in the project root; it is ignored by git.
 
 ## Deploy
 
-Click **Deploy to Render** above, sign in with GitHub and confirm. Render builds the `Dockerfile` and runs the web app and API as one service with a generated `JWT_SECRET`.
+Click **Deploy to Render** above and sign in with GitHub. When asked for `DATABASE_URL`, paste your Azure PostgreSQL connection string, or leave it blank to use the built-in SQLite database. Render builds the `Dockerfile` and runs the web app and API as one service with a generated `JWT_SECRET`. With Azure, data survives restarts and redeploys; with SQLite on Render's free plan it is reset when the service restarts.
 
-On Render's free plan the app sleeps after 15 minutes without visitors, so the first visit takes about 30 seconds to wake it. Data is reset when the service restarts. Add a persistent disk or a PostgreSQL `DATABASE_URL` to keep it.
+In the Azure portal, under the database server's **Networking**, allow connections from the app's outbound IP addresses (Render lists them under the service's **Connect → Outbound**).
+
+On Render's free plan the app sleeps after 15 minutes without visitors, so the first visit takes about 30 seconds.
 
 ## Tech stack
 
-FastAPI · SQLAlchemy · SQLite · PyJWT · React 19 · TypeScript · Vite · Cytoscape.js
+FastAPI · SQLAlchemy · SQLite / Azure Database for PostgreSQL · PyJWT · React 19 · TypeScript · Vite · Cytoscape.js

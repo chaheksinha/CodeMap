@@ -797,6 +797,10 @@ function StatusCard({ snap, viewHint, onSource, onTrace }: { snap: Snapshot; vie
     return stored ? stored === 'open' : window.matchMedia('(min-width: 1280px)').matches
   })
   const services = snap.nodes.filter((node) => node.kind === 'service').length
+  const modules = snap.nodes.filter((node) => node.kind === 'file').length
+  // A single-app project is mapped file by file, so count modules and imports instead.
+  const moduleView = modules > 0
+  const imports = snap.edges.filter((edge) => edge.kind === 'import').length
   const missingInput = !snap.project.source_name || !snap.project.trace_name
   function toggle() {
     const next = !open
@@ -808,12 +812,12 @@ function StatusCard({ snap, viewHint, onSource, onTrace }: { snap: Snapshot; vie
       <button type="button" className="status-head" aria-expanded={open} title={open ? 'Hide inputs' : 'Show inputs and what this view shows'} onClick={toggle}>
         <span className="status-stats">
           <span>
-            <small>Services</small>
-            <b>{services}</b>
+            <small>{moduleView ? 'Modules' : 'Services'}</small>
+            <b>{moduleView ? modules : services}</b>
           </span>
           <span>
-            <small>In code</small>
-            <b>{snap.stats.static_links}</b>
+            <small>{moduleView ? 'Imports' : 'In code'}</small>
+            <b>{moduleView ? imports : snap.stats.static_links}</b>
           </span>
           <span>
             <small>Runtime</small>

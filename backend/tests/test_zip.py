@@ -46,9 +46,45 @@ def test_rejects_windows_drive_path(tmp_path: Path) -> None:
         safe_extract(build_zip([("C:/evil.py", b"x = 1\n")]), tmp_path / "out")
 
 
-def test_rejects_exe(tmp_path: Path) -> None:
-    with pytest.raises(ZipRejected, match="Disallowed"):
+def test_exe_only_archive_has_no_source(tmp_path: Path) -> None:
+    with pytest.raises(ZipRejected, match="no source files"):
         safe_extract(build_zip([("app/run.exe", b"MZ")]), tmp_path / "out")
+
+
+def test_skips_unsupported_files_and_tool_folders(tmp_path: Path) -> None:
+    dest = tmp_path / "out"
+    safe_extract(
+        build_zip(
+            [
+                ("game/js/main.js", b"const a = 1\n"),
+                ("game/index.html", b"<html></html>"),
+                ("game/favicon.ico", b"\x00\x01"),
+                ("game/run.exe", b"MZ"),
+                ("game/.git/config", b"[core]"),
+                ("game/.github/workflows/ci.yml", b"on: push"),
+                ("game/node_modules/lib/index.js", b"module.exports = 1"),
+            ]
+        ),
+        dest,
+    )
+    assert (dest / "game" / "js" / "main.js").exists()
+    for skipped in ("index.html", "favicon.ico", "run.exe", ".git", ".github", "node_modules"):
+        assert not (dest / "game" / skipped).exists()
+
+
+def test_accepts_windows_style_folder_entries(tmp_path: Path) -> None:
+    # Windows PowerShell's Compress-Archive writes "folder\\" entries with no forward slash.
+    dest = tmp_path / "out"
+    safe_extract(
+        build_zip([("Game\\.github\\", b""), ("Game\\js\\", b""), ("Game\\js\\app.js", b"let x = 1\n")]),
+        dest,
+    )
+    assert (dest / "Game" / "js" / "app.js").read_bytes() == b"let x = 1\n"
+
+
+def test_still_rejects_traversal_inside_skipped_folder(tmp_path: Path) -> None:
+    with pytest.raises(ZipRejected, match="parent"):
+        safe_extract(build_zip([("app/main.py", b"x = 1\n"), ("node_modules/../../evil.png", b"x")]), tmp_path / "out")
 
 
 def test_rejects_symlink(tmp_path: Path) -> None:

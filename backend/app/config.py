@@ -21,9 +21,19 @@ load_dotenv(REPO_DIR / ".env")
 _default_db = (BACKEND_DIR / "codemap.db").resolve().as_posix()
 
 
+def normalize_database_url(url: str) -> str:
+    """Use the psycopg 3 driver for PostgreSQL URLs, whatever form they arrive in."""
+    url = url.strip()
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix):]
+    return url
+
+
 class Settings:
     def __init__(self) -> None:
-        self.database_url = os.environ.get("DATABASE_URL", f"sqlite:///{_default_db}")
+        # A blank DATABASE_URL (e.g. an unfilled hosting setting) means "use the local SQLite file".
+        self.database_url = normalize_database_url(os.environ.get("DATABASE_URL", "").strip() or f"sqlite:///{_default_db}")
         self.jwt_secret = os.environ.get("JWT_SECRET", "local-dev-change-me")
         self.storage_dir = Path(os.environ.get("UPLOAD_DIR", BACKEND_DIR / "storage"))
         self.demo_dir = Path(os.environ.get("DEMO_PROJECTS_DIR", REPO_DIR / "demo-projects"))
